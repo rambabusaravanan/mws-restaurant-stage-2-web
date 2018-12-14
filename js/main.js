@@ -45,12 +45,15 @@ fillNeighborhoodsHTML = (neighborhoods = self.neighborhoods) => {
  * Fetch all cuisines and set their HTML.
  */
 fetchCuisines = () => {
+  // DBHelper.getRestaurants()
+  //   .then(fillCuisinesHTML)
+  //   .catch(console.error)
   DBHelper.fetchCuisines((error, cuisines) => {
     if (error) { // Got an error!
       console.error(error);
     } else {
-      self.cuisines = cuisines;
-      fillCuisinesHTML();
+      // self.cuisines = cuisines;
+      fillCuisinesHTML(cuisines);
     }
   });
 }
@@ -58,7 +61,7 @@ fetchCuisines = () => {
 /**
  * Set cuisines HTML.
  */
-fillCuisinesHTML = (cuisines = self.cuisines) => {
+fillCuisinesHTML = (cuisines) => {
   const select = document.getElementById('cuisines-select');
 
   cuisines.forEach(cuisine => {

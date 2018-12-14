@@ -1,7 +1,69 @@
 /**
  * Common database helper functions.
  */
-class DBHelper {
+
+const DB_NAME = 'mws';
+const STORE_NAME = 'restaurants';
+
+const dbPromise = idb.open(DB_NAME, 1, upgradeDB => {
+  upgradeDB.createObjectStore(STORE_NAME);
+});
+
+const database = {
+  getAll() {
+    return dbPromise.then(db => {
+      return db.transaction(STORE_NAME)
+        .objectStore(STORE_NAME).getAll();
+    })    
+  },
+  get(key) {
+    return dbPromise.then(db => {
+      return db.transaction(STORE_NAME)
+        .objectStore(STORE_NAME).get(key);
+    });
+  },
+  set(key, val) {
+    return dbPromise.then(db => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).put(val, key);
+      return tx.complete;
+    });
+  },
+  delete(key) {
+    return dbPromise.then(db => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).delete(key);
+      return tx.complete;
+    });
+  },
+  clear() {
+    return dbPromise.then(db => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      tx.objectStore(STORE_NAME).clear();
+      return tx.complete;
+    });
+  },
+  keys() {
+    return dbPromise.then(db => {
+      const tx = db.transaction(STORE_NAME);
+      const keys = [];
+      const store = tx.objectStore(STORE_NAME);
+
+      // This would be store.getAllKeys(), but it isn't supported by Edge or Safari.
+      // openKeyCursor isn't supported by Safari, so we fall back
+      (store.iterateKeyCursor || store.iterateCursor).call(store, cursor => {
+        if (!cursor) return;
+        keys.push(cursor.key);
+        cursor.continue();
+      });
+
+      return tx.complete.then(() => keys);
+    });
+  }
+};
+
+
+ class DBHelper {
 
   /**
    * Database URL.
@@ -9,45 +71,93 @@ class DBHelper {
    */
   static get DATABASE_URL() {
     // Changed this to your relative path
-    return 'data/restaurants.json';
+    // return 'data/restaurants.json';
+    const LOCAL_API = 'http://localhost:1337';
+    const REMOTE_API = 'https://mws-stage-2.herokuapp.com';
+    return location.hostname === "localhost" ? LOCAL_API : REMOTE_API;
   }
+
+
 
   /**
    * Fetch all restaurants.
    */
-  static fetchRestaurants(callback) {
-    let xhr = new XMLHttpRequest();
-    xhr.open('GET', DBHelper.DATABASE_URL);
-    xhr.onload = () => {
-      if (xhr.status === 200) { // Got a success response from server!
-        const json = JSON.parse(xhr.responseText);
-        const restaurants = json.restaurants;
-        callback(null, restaurants);
-      } else { // Oops!. Got an error from server.
-        const error = (`Request failed. Returned status of ${xhr.status}`);
-        callback(error, null);
-      }
-    };
-    xhr.send();
+  static fetchRestaurants(callback) {      
+    database.getAll()
+      .then(restaurants => {
+        if(Array.isArray(restaurants) && restaurants.length > 0) {
+          callback(null, restaurants);
+          // return Promise.resolve(restaurants);
+        } else {
+          fetch(DBHelper.DATABASE_URL + "/restaurants")
+            .then(res => res.json())
+            .then(res => {
+              res.forEach(r => database.set(r.id, r));
+              callback(null, restaurants)
+              // return res;
+            })
+            .catch(error => {
+              console.error(error);
+              error = (`Request failed. ${error.message}`);
+              callback(error, null)
+            })
+        }
+      });
+
+    // let xhr = new XMLHttpRequest();
+    // // xhr.open('GET', DBHelper.DATABASE_URL);
+    // xhr.open('GET', DBHelper.DATABASE_URL + "/restaurants");
+    // xhr.onload = () => {
+    //   if (xhr.status === 200) { // Got a success response from server!
+    //     const json = JSON.parse(xhr.responseText);
+    //     // const restaurants = json.restaurants;
+    //     callback(null, json);
+    //   } else { // Oops!. Got an error from server.
+    //     const error = (`Request failed. Returned status of ${xhr.status}`);
+    //     callback(error, null);
+    //   }
+    // };
+    // xhr.send();
   }
 
   /**
    * Fetch a restaurant by its ID.
    */
   static fetchRestaurantById(id, callback) {
-    // fetch all restaurants with proper error handling.
-    DBHelper.fetchRestaurants((error, restaurants) => {
-      if (error) {
-        callback(error, null);
-      } else {
-        const restaurant = restaurants.find(r => r.id == id);
-        if (restaurant) { // Got the restaurant
+    database.get(parseInt(id))
+      .then(restaurant => {
+        if(restaurant) {
           callback(null, restaurant);
-        } else { // Restaurant does not exist in the database
-          callback('Restaurant does not exist', null);
+          // return Promise.resolve(restaurant);
+        } else {
+          fetch(DBHelper.DATABASE_URL + "/restaurants/"+ id)
+            .then(res => res.json())
+            .then(res => {
+              database.set(res.id, res);
+              callback(null, res)
+              // return res;
+            })
+            .catch(error => {
+              console.error(error);
+              error = (`Request failed. ${error.message}`);
+              callback(error, null)
+            })
         }
-      }
-    });
+      });
+
+    // // fetch all restaurants with proper error handling.
+    // DBHelper.fetchRestaurants((error, restaurants) => {
+    //   if (error) {
+    //     callback(error, null);
+    //   } else {
+    //     const restaurant = restaurants.find(r => r.id == id);
+    //     if (restaurant) { // Got the restaurant
+    //       callback(null, restaurant);
+    //     } else { // Restaurant does not exist in the database
+    //       callback('Restaurant does not exist', null);
+    //     }
+    //   }
+    // });
   }
 
   /**
@@ -150,7 +260,7 @@ class DBHelper {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`img/${restaurant.photograph}`);
+    return (`img/${restaurant.photograph}.jpg`);
   }
 
   /**

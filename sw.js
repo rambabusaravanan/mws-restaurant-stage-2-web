@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'mws-restaurant';
-const CACHE_NAME = CACHE_PREFIX + 'v1';
+const CACHE_NAME = CACHE_PREFIX + '-v2.1';
 
 const pages = [
     '/',
@@ -10,6 +10,7 @@ const pages = [
 const assets = [
     'https://unpkg.com/leaflet@1.3.1/dist/leaflet.css',
     'https://unpkg.com/leaflet@1.3.1/dist/leaflet.js',
+    'https://unpkg.com/idb@2.1.3/lib/idb.js',
     'css/styles.css',
     'js/main.js',
     'js/restaurant_info.js',
@@ -17,6 +18,7 @@ const assets = [
 ];
 
 self.addEventListener('install', event => {
+    console.log("sw install: with cache " + CACHE_NAME)
     event.waitUntil(
         caches
             .open(CACHE_NAME)
@@ -29,8 +31,10 @@ self.addEventListener('fetch', event => {
         caches
             .match(event.request)
             .then(cacheResponse => {
+                console.log("sw fetch: " + event.request.url)
                 return cacheResponse || fetch(event.request)
                     .then(fetchResponse => {
+                        console.log("sw fetch: [fresh] " + event.request.url)
                         return caches
                             .open(CACHE_NAME)
                             .then(cache => {
@@ -41,3 +45,20 @@ self.addEventListener('fetch', event => {
             })
     );
 });
+
+self.addEventListener('activate', function(event) {  
+    console.log("sw activate:")
+    event.waitUntil(
+      caches.keys().then(function(cacheNames) {
+        return Promise.all(
+          cacheNames.map(function(cacheName) {
+            if (cacheName !== CACHE_NAME) {
+                console.log("sw activate: deleting cache " + cacheName)
+                return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    );
+  });
+  
