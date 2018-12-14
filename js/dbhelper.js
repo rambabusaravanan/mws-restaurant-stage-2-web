@@ -124,9 +124,11 @@ const database = {
    * Fetch a restaurant by its ID.
    */
   static fetchRestaurantById(id, callback) {
+    let cachedResponse = false;
     database.get(parseInt(id))
       .then(restaurant => {
         if(restaurant) {
+          cachedResponse = true;
           callback(null, restaurant);
         } 
 
@@ -135,7 +137,8 @@ const database = {
           .then(res => res.json())
           .then(res => {
             database.set(res.id, res);
-            callback(null, res)
+            if(!cachedResponse)
+              callback(null, res)
             // return res;
           })
           .catch(error => {
