@@ -225,7 +225,7 @@ registerServiceWorker = () => {
     console.log('Service Worker is unavailable!');
     return;
   }
-  navigator.serviceWorker.register('../sw.js').then(() => {
+  navigator.serviceWorker.register('./sw.js').then(() => {
     console.log('Service Worker registration succeeded!');
   }).catch((error) => {
     console.log('Service Worker registration failed:', error);
