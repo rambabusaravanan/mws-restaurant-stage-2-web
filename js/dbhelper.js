@@ -87,21 +87,21 @@ const database = {
       .then(restaurants => {
         if(Array.isArray(restaurants) && restaurants.length > 0) {
           callback(null, restaurants);
-          // return Promise.resolve(restaurants);
-        } else {
-          fetch(DBHelper.DATABASE_URL + "/restaurants")
-            .then(res => res.json())
-            .then(res => {
-              res.forEach(r => database.set(r.id, r));
-              callback(null, restaurants)
-              // return res;
-            })
-            .catch(error => {
-              console.error(error);
-              error = (`Request failed. ${error.message}`);
-              callback(error, null)
-            })
         }
+
+        // fetch fresh
+        fetch(DBHelper.DATABASE_URL + "/restaurants")
+          .then(res => res.json())
+          .then(res => {
+            res.forEach(r => database.set(r.id, r));
+            callback(null, restaurants)
+            // return res;
+          })
+          .catch(error => {
+            console.error(error);
+            error = (`Request failed. ${error.message}`);
+            callback(error, null)
+          })
       });
 
     // let xhr = new XMLHttpRequest();
@@ -128,21 +128,21 @@ const database = {
       .then(restaurant => {
         if(restaurant) {
           callback(null, restaurant);
-          // return Promise.resolve(restaurant);
-        } else {
-          fetch(DBHelper.DATABASE_URL + "/restaurants/"+ id)
-            .then(res => res.json())
-            .then(res => {
-              database.set(res.id, res);
-              callback(null, res)
-              // return res;
-            })
-            .catch(error => {
-              console.error(error);
-              error = (`Request failed. ${error.message}`);
-              callback(error, null)
-            })
-        }
+        } 
+
+        // fetch fresh
+        fetch(DBHelper.DATABASE_URL + "/restaurants/"+ id)
+          .then(res => res.json())
+          .then(res => {
+            database.set(res.id, res);
+            callback(null, res)
+            // return res;
+          })
+          .catch(error => {
+            console.error(error);
+            error = (`Request failed. ${error.message}`);
+            callback(error, null)
+          })
       });
 
     // // fetch all restaurants with proper error handling.
@@ -260,7 +260,10 @@ const database = {
    * Restaurant image URL.
    */
   static imageUrlForRestaurant(restaurant) {
-    return (`img/${restaurant.photograph}.jpg`);
+    if(restaurant && restaurant.photograph)
+      return (`img/${restaurant.photograph}.jpg`);
+    else
+      return 'https://via.placeholder.com/320x250.png?text=No%20Photographs';
   }
 
   /**
